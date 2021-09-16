@@ -3,6 +3,7 @@ title: "MAP Prior with Time-to-Event Endpoint"
 author: "Hongtao Zhang"
 date: "9/12/2021"
 output: html_document
+# output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -46,12 +47,14 @@ library(kableExtra)
 rmat <- as_tibble(matrix(FIOCCO.n.events, nrow = 12, ncol = 10, byrow = F), .name_repair = "minimal")
 colnames(rmat) <- c(paste("Hist",1:9, sep=""), "Curr")
 rdt <- tibble(Interval=Time, rmat)
-rdt %>% kbl(caption="Number of Events") %>% kable_classic(full_width = F, html_font = "Cambria")
+rdt %>% kbl(caption="Number of Events") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
 
 Emat <- as_tibble(matrix(FIOCCO.exp.time, nrow = 12, ncol = 10, byrow = F), .name_repair = "minimal")
 colnames(Emat) <- c(paste("Hist",1:9, sep=""), "Curr")
 Edt <- tibble(Interval=Time, Emat)
-Edt %>% kbl(caption="Total Exposure (in Years)") %>% kable_classic(full_width = F, html_font = "Cambria")
+Edt %>% kbl(caption="Total Exposure (in Years)") %>% 
+  kable_classic(full_width = F, html_font = "Cambria")
 ```
 
 ## Original MAP Prior
@@ -108,7 +111,8 @@ $$
 f_{rMAP} = 0.5*\hat{f}_{MAP} + 0.5*f_V.
 $$
 ```{r}
-rmap <- robustify(map_hat, weight=0.5, mean=0.3, n=1)
+rmap <- robustify(map_hat, weight=0.5, mean=summary(map_hat)[4], n=1)
 print(rmap)
 summary(rmap)
 ```
+

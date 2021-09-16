@@ -1,0 +1,1 @@
+This repository contains the slides and RmarkDown programs for my historcal borrowing short course at 28th Biopharmaceutical Applied Statistics Symposium (BASS XXVIII). 
