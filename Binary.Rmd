@@ -1,5 +1,5 @@
 ---
-title: "MAP Prior with Binary Endpoint"
+title: "Case Study: MAP Prior with Binary Endpoint"
 author: "Hongtao Zhang [(github/squallteo)](https://github.com/squallteo)"
 output: html_document
 # output: pdf_document
@@ -164,7 +164,7 @@ plotdt %>%
   )
 ```
 
-## Data Analysis with Observed Current Trial Data
+## Analysis with Observed Current Trial Data
 
 After the new trial is unblinded and analyzed, the robust MAP prior is updated with observed current control data. The posterior distribution is also a mixture of Beta components. Comparing with the prior mixture, the parameters of each Beta component is updated, and so is the weight $w$.  
 ```{r}
@@ -181,10 +181,10 @@ y_t <- 30
 
 Thanks to the *RBesT* package, the mixture distribution (and their difference) in R works in the same way as other probability distributions, in the sense that d/p/q/r functions can be used. Therefore, we can use the *pmixdiff* command to evaluate the single-criterion decision rule. 
 ```{r}
-(prob <- pmixdiff(post_t, post_c,  0, lower.tail=FALSE))
+pmixdiff(post_t, post_c,  0, lower.tail=FALSE)
 ```
 
-To verify, we can draw samples from respective posterior distributions and calculate the probability. It matches that calculated using *pmixdiff*. 
+To verify, we can draw samples from respective posterior distributions and calculate the probability. The probability matches that calculated using *pmixdiff*. Either way, the current trial can be claimed successful. 
 ```{r}
 sample_t <- rmix(post_t, 100000)
 sample_c <- rmix(post_c, 100000)

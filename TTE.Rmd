@@ -1,7 +1,6 @@
 ---
-title: "MAP Prior with Time-to-Event Endpoint"
-author: "Hongtao Zhang"
-date: "9/12/2021"
+title: "Case Study: MAP Prior with Time-to-Event Endpoint"
+author: "Hongtao Zhang [(github/squallteo)](https://github.com/squallteo)"
 output: html_document
 # output: pdf_document
 ---
@@ -12,10 +11,7 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = TRUE)
 
 ## The Data
 
-The time-to-event (TTE) data from Roychoudhury and Neuenschwander (2020). 
-
-The historical data were extracted from published Kaplan-Meier curves in 10 historical trials. The four year follow-up period was partitioned into 12 mutually exclusive intervals for the piecewise exponential model. 
-
+The time-to-event (TTE) data used in this case study are from Roychoudhury and Neuenschwander (2020). The historical data were extracted from published Kaplan-Meier curves in 10 historical oncology trials. The four-year follow-up period was partitioned into 12 mutually exclusive intervals. The number of events and total exposure in years in each time interval of each trial are shown below. 
 ```{r}
 Time <- c("0.00-0.25", "0.25-0.50", "0.50-0.75", "0.75-1.00",
           "1.00-1.25", "1.25-1.50", "1.50-1.75", "1.75-2.08",
@@ -38,47 +34,50 @@ FIOCCO.exp.time <- c(9.4,  8.8,  7.9,  7.0,  6.1,  5.8,  5.8,  7.3,  8.8,  7.6, 
                      19.7, 17.4, 27.5)
 ```
 
-Reorganize the data in matrix form: 
+We reorganize the data in matrix form. The first nine trials are used as the historical data, and the remaining one is regarded the new trial. 
 ```{r}
 library(tidyverse)
 library(knitr)
 library(kableExtra)
 
-rmat <- as_tibble(matrix(FIOCCO.n.events, nrow = 12, ncol = 10, byrow = F), .name_repair = "minimal")
+rmat <- 
+  as_tibble(matrix(FIOCCO.n.events, nrow = 12, ncol = 10, byrow = F), 
+            .name_repair = "minimal")
 colnames(rmat) <- c(paste("Hist",1:9, sep=""), "Curr")
 rdt <- tibble(Interval=Time, rmat)
 rdt %>% kbl(caption="Number of Events") %>% 
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
 
-Emat <- as_tibble(matrix(FIOCCO.exp.time, nrow = 12, ncol = 10, byrow = F), .name_repair = "minimal")
+Emat <- 
+  as_tibble(matrix(FIOCCO.exp.time, nrow = 12, ncol = 10, byrow = F), 
+            .name_repair = "minimal")
 colnames(Emat) <- c(paste("Hist",1:9, sep=""), "Curr")
 Edt <- tibble(Interval=Time, Emat)
 Edt %>% kbl(caption="Total Exposure (in Years)") %>% 
-  kable_classic(full_width = F, html_font = "Cambria")
+  kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
 ```
 
-## Original MAP Prior
-We use the data from the [0.00, 0.25) interval for illustration purpose. 
+## MAP Prior
 
-The number of events r is modeled as a Poisson random variable. The original MAP prior assumes a common normal distribution of log-hazards $\log(\lambda_{ij})$. Subscript $i=1,\cdots,12$ indices the time intervals, while subscript $j=1,\cdots,9$ historical trials: 
+For illustration purpose, we only use the data from the [0.00, 0.25) interval. With an underlying (piecewise) exponential model, the number of events $r$ can be modeled as a Poisson random variable. Use subscript $i=1,\cdots,12$ to index the time intervals, while subscript $j=1,\cdots,9$ historical trials. The original MAP prior assumes a common normal distribution for log-hazards $\log\lambda_{ij}$.
 $$
-\log(\lambda_{11}), \cdots, \log(\lambda_{19}) \sim N(\mu_1, \sigma^2_1), 
+\log\lambda_{11}, \cdots, \log\lambda_{19} \sim N(\log\mu_1, \sigma^2_1), 
 $$
 where the hyper-priors are
 $$
-\mu_1 \sim N(0, 10^2) \mbox{ and } \sigma_1 \sim HN(0, 0.5).
+\log\mu_1 \sim N(0, 10^2) \mbox{ and } \sigma_1 \sim HN(s).
 $$
-The hyper-prior of $\mu_1$ is vague is data would be sufficiently informative for it. The half-normal prior regulates the extent of borrowing and thus should be chosen carefully. One way is to examine its density plot. 
-```{r, echo = FALSE}
+The hyper-prior for $\log\mu_1$ is vague as data would be sufficiently informative for it. The half-normal prior regulates the extent of borrowing and thus the scale $s$ should be chosen carefully. We use $HN(s=0.5)$ from hereafter and its density plot is examined. 
+```{r, echo = FALSE, fig.align = 'center'}
 library(extraDistr)
-tt <- seq(0, 3, 0.05)
-plotdt <- tibble(x = tt, density = dhnorm(tt, sigma = 0.5))
-
+x <- seq(0, 3, 0.05)
+plotdt <- tibble(x = x, density = dhnorm(x, sigma = 0.5))
 plotdt %>% 
-  ggplot(aes(x, density)) + geom_line(size=1.5) + theme_bw() + ggtitle("Density Plot of Half-Normal Prior")
+  ggplot(aes(x, density)) + geom_line(size=1.5) + theme_bw() + 
+  ggtitle("Density Plot of Half-Normal Prior")
 ```
 
-To properly handle the exposure, the important trick is to **use log-exposure as the *offset*** in *gMAP*. 
+The MAP prior can be derived with *gMAP* command. The *family* option should be "poisson" in this case. More importantly, log-exposure must be specified as the offset in the formula for proper handling of the exposure. 
 ```{r}
 rmat <- matrix(FIOCCO.n.events, nrow = 12, ncol = 10, byrow = F)
 Emat <- matrix(FIOCCO.exp.time, nrow = 12, ncol = 10, byrow = F)
@@ -91,13 +90,13 @@ map_mcmc <- gMAP(r ~ 1 + offset(log(exp)) | study, data = histdt, family = poiss
                   beta.prior=cbind(0, 10))
 ```
 
-The distribution of the MAP prior is unknown. Approximation is needed to convert it to a "workable" form. Since the the number of events follows the Poisson distribution, the MAP prior is approximated by a weighted mixture of Gamma distributions. The number of components may be determined automatically by the algorithm. 
+The distribution of the MAP prior is unknown and approximation is needed to convert it to a "workable" form. Since the the number of events $r$ follows a Poisson distribution, the MAP prior is approximated by a weighted mixture of Gamma distributions. The number of components may be determined automatically by the algorithm. 
 ```{r}
 map_hat <- automixfit(map_mcmc)
 print(map_hat)
 ```
 
-The mixture has three Gamma components. The approximation can be examined either numerically or visually. 
+The mixture has three Gamma components. The approximation is satisfactory as shown both numerically and visually. 
 ```{r}
 summary(map_mcmc)$theta.pred
 summary(map_hat)
@@ -106,7 +105,7 @@ plot(map_hat)$mix
 
 ## Robust MAP Prior
 
-The vague prior $f_V$ to construct rMAP is $Ga(m=0.3, n=1)$ and we form a 50-50 mixture of original MAP prior and the vague prior, that is, 
+The vague prior $f_V$ to construct robust MAP prior is $Ga(m, n=1)$ which has an effective sample size (ESS) of 1. Note that the ESS in TTE context is the number of events, as opposed to the number of subjects. The mean of the Gamma prior $m$ is set to the median of the original MAP prior. We form a 50-50 mixture of original MAP prior and the vague prior, that is, 
 $$
 f_{rMAP} = 0.5*\hat{f}_{MAP} + 0.5*f_V.
 $$
@@ -116,3 +115,48 @@ print(rmap)
 summary(rmap)
 ```
 
+## Analysis with Observed Current Trial Data
+
+We use the data from time interval [0.00, 0.25) in the 10th trial to update the robust MAP prior. The posterior distribution is also a mixture of Gamma components. Comparing with the prior mixture, the parameters of each Gamma component is updated, and so is the weight $w$. 
+```{r}
+(postmix_rmap <- postmix(rmap, n = Emat[1, 10] , m = rmat[1, 10]/Emat[1, 10]))
+print(rmap)
+```
+
+Denote $\log\lambda_{1C}$ the hazard rate of the current trial in time interval [0.00, 0.25), which follows the same distribution $N(\log\mu_1, \sigma^2_1)$ as historical log-hazards. The decision rule to claim current trial success is
+$$
+Pr(\mu_{1} \leq 0.15 | data) > 0.9.
+$$
+Thanks to the *RBesT* package, the mixture distribution in R works in the same way as other probability distributions, in the sense that d/p/q/r functions can be used. Therefore, we can use the *pmix* command to evaluate the single-criterion decision rule. 
+```{r}
+pmix(postmix_rmap, q = 0.15, lower.tail = TRUE)
+```
+To verify, we can draw a sample from the posterior mixture distribution and calculate the probability. The probability matches the counterpart calculated using *pmix*. Either way, the current trial can be claimed successful as the probability exceeds the threshold 0.9. 
+```{r}
+sample_c <- rmix(mix = postmix_rmap, n = 200000)
+mean((sample_c < 0.15))
+```
+
+## New Trial Design
+
+At the study design stage, the design operating characteristics can be evaluated. Using the same context in previous section including the decision rule, we consider a range of true hazard rate between 0.05 and 0.25 per year. The decision rule and the study design can be defined as follows. Note that the total exposure should be fixed in *oc1S* function that defines the design. We anticipate the total exposure would be 30 years. 
+```{r}
+(rule_single <- decision1S(pc = c(0.9), qc = c(0.15), lower.tail = T))
+design <- oc1S(prior = rmap, n = 30, decision = rule_single)
+```
+
+The power/type I error can be evaluated given true hazard rate. 
+```{r}
+haz_range <- seq(0.05, 0.25, 0.02)
+prob <- design(haz_range)
+ocdt <- tibble(TrueHaz = haz_range, Prob = round(prob,3))
+ocdt %>% kbl(caption="Operating Characteristics") %>% 
+  kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
+```
+
+## Handling of Multiple Time Intervals
+
+Under the Poisson-Gamma framework, analysis and design evaluation can be carried out independently for each time interval. A more flexible model is proposed in Roychoudhury and Neuenschwander (2020). For example, one may model the dependency among interval-specific mean log-hazards $\log\mu_1, \cdots, \log\mu_{12}$. The model, however, cannot be implemented in *RBesT* package. 
+
+## References
+Roychoudhury, S., & Neuenschwander, B. (2020). Bayesian leveraging of historical control data for a clinical trial with time‐to‐event endpoint. *Statistics in medicine*, 39(7), 984-995.
