@@ -1,8 +1,8 @@
 ---
 title: "Case Study: MAP Prior with Binary Endpoint"
 author: "Hongtao Zhang [(github/squallteo)](https://github.com/squallteo)"
-output: html_document
-# output: pdf_document
+# output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -22,10 +22,18 @@ histdt %>% kbl(caption="Historical Data") %>%
   kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
 ```
 
-The ACR50 rates in the four historical trials are fairly consistent. The random effect meta-analysis yields a point estimate of 0.154. The predictive CI for current control is (0.11, 0.21). 
+The ACR50 rates in the four historical trials are fairly consistent. The random effect meta-analysis yields a point estimate of 0.154 and an SE of 0.0108. The predictive CI for current control is (0.11, 0.21). 
 ```{r}
 with(histdt, meta::metaprop(event = r, n = n, method = "Inverse", prediction = T))
 ```
+
+## Borrowing with Conjugate Beta Prior
+We could conduct fixed borrowing via the Beta-Binomial conjugate model. Recall that the point estimate and SE of historical data are 0.154 and 0.0108, respectively. The $Beta(a,b)$ prior for ACR50 rate can be derived to have the same mean and SE, that is, to "match the moments". Specifically, we solve $a, b$ from the equation system
+$$
+\frac{a}{a+b} = 0.154 \mbox{ and } \frac{ab}{(a+b)(a+b+1)^2} = 0.0108^2.
+$$
+
+The solution is $Beta(170, 935)$. Once $Y_C$ ACR50 responses are observed among $n_C$ subjects in the current trial, the posterior distribution of ACR50 rate, which is also a Beta distribution due to conjugacy, is $Beta(170 + Y_C, 935 + n_C - Y_C)$. Further estimations and inferences are drawn based on this known posterior Beta distribution. 
 
 ## MAP Prior
 The original MAP prior assumes a common normal distribution for log-odds $\theta_i = \log\frac{p_i}{1-p_i}$ where subscript $i=1,\cdots,4$ indices the historical trials:
@@ -90,6 +98,22 @@ $$
 rmap_c <- robustify(map_c_hat, weight=0.5, mean=0.5, n=1)
 print(rmap_c)
 summary(rmap_c)
+```
+
+We could compare the density functions of original and robust MAP prior. It can be seen that both priors have roughly the same mode. The density of rMAP prior has heavier tails, and therefore places more density on more extreme rates. 
+```{r}
+sample_MAP <- tibble(x=rmix(map_c_hat,100000), Prior = "MAP")
+sample_rMAP <- tibble(x=rmix(rmap_c,100000), Prior = "rMAP")
+
+rbind(sample_MAP, sample_rMAP) %>% 
+  ggplot(aes(x=x, fill=Prior)) + geom_density(alpha=0.5) +
+  theme_bw() +
+  theme(axis.title = element_text(face="bold",size=20),
+        axis.text = element_text(size=20),
+        legend.title=element_text(size=20,face="bold"),
+        legend.text=element_text(size=20),
+        legend.position = c(0.5, 0.5)
+  )
 ```
 
 ## New Trial Design
