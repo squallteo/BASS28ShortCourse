@@ -166,8 +166,9 @@ design_omap <- oc2S(prior_t, map_c_hat, 60, 30, rule_single)
 error_omap <- design_omap(ctrl_range, ctrl_range)
 power_omap <- design_omap(ctrl_range+es, ctrl_range)
 
-ocdt <- tibble(CtrlRate = ctrl_range, Freq_Error = 0.025, rMAP_Error = round(error_rmap,3), oMAP_Error = round(error_omap,3), 
-               Freq_Power = round(FPwr20$power,3), rMAP_Power = round(power_rmap,3), oMAP_Power = round(power_omap,3))
+ocdt <- tibble(CtrlRate = ctrl_range, Freq_Error = 0.025, rMAP_Error = round(error_rmap,3), 
+               oMAP_Error = round(error_omap,3), Freq_Power = round(FPwr20$power,3), 
+               rMAP_Power = round(power_rmap,3), oMAP_Power = round(power_omap,3))
 ocdt %>% kbl(caption="Operating Characteristics") %>% 
   kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
 ```
