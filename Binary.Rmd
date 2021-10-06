@@ -1,8 +1,8 @@
 ---
 title: "Case Study: MAP Prior with Binary Endpoint"
 author: "Hongtao Zhang [(github/squallteo)](https://github.com/squallteo)"
-# output: html_document
-output: pdf_document
+output: html_document
+# output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -154,24 +154,29 @@ $$
 decision2S(pc = c(0.975, 0.6), qc = c(0, 0.25), lower.tail = F)
 ```
 
-The "design" object is a function that computes operating characteristics given control and treatment rates. In the results shown below, type I error corresponds to an effect size of 0, while power corresponds to an effect size of 0.25. 
+The "design" object is a function that computes operating characteristics given control and treatment rates. In the results shown below, type I error corresponds to an effect size of 0, while power corresponds to an effect size of 0.25. The operating characteristics corresponding to original MAP is also computed for comparison purpose. 
 ```{r}
 #type I error
-error_b <- design(ctrl_range, ctrl_range)
+error_rmap <- design(ctrl_range, ctrl_range)
 #power
-power_b <- design(ctrl_range+es, ctrl_range)
+power_rmap <- design(ctrl_range+es, ctrl_range)
 
-ocdt <- tibble(CtrlRate = ctrl_range, FreqError = 0.025, BorrowError = round(error_b,3), 
-               FreqPower = round(FPwr20$power,3), BorrowPower = round(power_b,3))
+#original MAP prior
+design_omap <- oc2S(prior_t, map_c_hat, 60, 30, rule_single)
+error_omap <- design_omap(ctrl_range, ctrl_range)
+power_omap <- design_omap(ctrl_range+es, ctrl_range)
+
+ocdt <- tibble(CtrlRate = ctrl_range, Freq_Error = 0.025, rMAP_Error = round(error_rmap,3), oMAP_Error = round(error_omap,3), 
+               Freq_Power = round(FPwr20$power,3), rMAP_Power = round(power_rmap,3), oMAP_Power = round(power_omap,3))
 ocdt %>% kbl(caption="Operating Characteristics") %>% 
   kable_classic(full_width = F, html_font = "Cambria", latex_options = "HOLD_position")
 ```
 
-We also generate a plot that overlays the OCs. The horizontal solid line indicates the constant frequentist type I error $\alpha=0.025$. The dashed vertical line represents the meta-analysis point estimate of historical control data. Within the range of true current control rate, the power using robust MAP prior is about 10% higher than no borrowing. In the meantime, the type I error rate is very well contained. 
+We also generate a plot that overlays the OCs. The horizontal solid line indicates the constant frequentist type I error $\alpha=0.025$. The dashed vertical line represents the meta-analysis point estimate of historical control data. Within the range of true current control rate, the power using robust MAP prior is about 10% higher than no borrowing. In the meantime, the type I error rate is very well contained. Robust MAP prior also demonstrates its robustness especially when current control rate is large. 
 ```{r}
 plotdt <- 
   ocdt %>% pivot_longer(!CtrlRate, names_to = "Method", values_to = "Prob") %>% 
-  filter(Method != "FreqError")
+  filter(Method != "Freq_Error")
 plotdt %>%
   ggplot(aes(x=CtrlRate,y=Prob, color=Method)) + 
   geom_line(size = 1.5) + geom_point(size = 3) + 
